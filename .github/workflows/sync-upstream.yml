@@ -1,0 +1,227 @@
+name: Sync from upstream
+
+# Pulls new commits from the read-only upstream (tt-a1i/archify) into this fork
+# by opening a PR. Never pushes to main and never touches upstream: the branch
+# below is the only thing this workflow writes, and integration stays a reviewed
+# merge.
+
+on:
+  schedule:
+    - cron: '0 3 * * 1' # Mondays, 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://github.com/tt-a1i/archify.git
+  SYNC_BRANCH: sync/upstream
+
+jobs:
+  sync:
+    name: Merge upstream into a review branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Configure git identity
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "$UPSTREAM_URL" 2>/dev/null || git remote set-url upstream "$UPSTREAM_URL"
+          git fetch upstream --prune
+          git fetch origin --prune
+
+      - name: Check whether upstream is ahead
+        id: check
+        run: |
+          behind=$(git rev-list --count origin/main..upstream/main)
+          echo "behind=$behind" >> "$GITHUB_OUTPUT"
+          if [ "$behind" -eq 0 ]; then
+            echo "Fork already contains every upstream commit — nothing to sync."
+            echo 'Fork is already up to date with upstream — no PR opened.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Upstream is ahead by $behind commit(s)."
+            git log --oneline origin/main..upstream/main > /tmp/newcommits.txt
+          fi
+
+      - name: Merge upstream into the sync branch
+        id: merge
+        if: steps.check.outputs.behind != '0'
+        run: |
+          git checkout -B "$SYNC_BRANCH" origin/main
+          if git merge upstream/main --no-edit; then
+            echo 'conflict=false' >> "$GITHUB_OUTPUT"
+          else
+            echo 'conflict=true' >> "$GITHUB_OUTPUT"
+            git diff --name-only --diff-filter=U > /tmp/conflicts.txt
+            git merge --abort
+          fi
+
+      - name: Install renderer dependencies
+        if: steps.merge.outputs.conflict == 'false'
+        run: npm ci
+        working-directory: archify
+
+      # PRs opened with GITHUB_TOKEN do not trigger other workflows, so the
+      # normal CI would not run on this PR. Run the fork-relevant gates here
+      # instead. Heavy or fork-irrelevant CI jobs (browser/WebM rendering,
+      # published-release manifest checks) are intentionally omitted.
+      - name: Run validators on the merged tree
+        id: validate
+        if: steps.merge.outputs.conflict == 'false'
+        run: |
+          set +e
+          status=0
+          : > /tmp/validation.md
+          for cmd in \
+            'npm --prefix archify test' \
+            'node scripts/package-smoke.mjs'; do
+            out=$($cmd 2>&1); code=$?
+            if [ "$code" -eq 0 ]; then mark='PASSED'; else mark='FAILED'; status=1; fi
+            summary=$(printf '%s' "$out" | tail -2 | tr -d '\r' | paste -sd' ' - | cut -c1-160)
+            printf -- '- `%s` — **%s** — %s\n' "$cmd" "$mark" "$summary" >> /tmp/validation.md
+          done
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          cat /tmp/validation.md
+
+      - name: Push the sync branch
+        if: steps.merge.outputs.conflict == 'false'
+        run: git push --force-with-lease origin "$SYNC_BRANCH"
+
+      # Mint a short-lived (~1h) installation token from an optional sync GitHub
+      # App. Unlike GITHUB_TOKEN, an App token can carry pull-requests write and
+      # lets the opened PR trigger CI. continue-on-error keeps the run green when
+      # the App is not configured — the PR step then falls back to GITHUB_TOKEN
+      # and, failing that, a manual compare link.
+      - name: Mint GitHub App token
+        id: app-token
+        if: steps.merge.outputs.conflict == 'false'
+        continue-on-error: true
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.SYNC_APP_ID }}
+          private-key: ${{ secrets.SYNC_APP_PRIVATE_KEY }}
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Open or update the sync pull request
+        if: steps.merge.outputs.conflict == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        run: |
+          if [ '${{ steps.validate.outputs.status }}' = '0' ]; then
+            verdict='All validators passed on the merged tree — safe to merge.'
+          else
+            verdict='**A validator failed on the merged tree — review before merging.**'
+          fi
+
+          {
+            echo "Upstream (\`tt-a1i/archify\`) is ahead by ${{ steps.check.outputs.behind }} commit(s)."
+            echo
+            echo "$verdict"
+            echo
+            echo '### Validators'
+            cat /tmp/validation.md
+            echo
+            echo '### Upstream commits in this sync'
+            echo '```'
+            cat /tmp/newcommits.txt
+            echo '```'
+            echo
+            echo '_Opened automatically by the weekly `Sync from upstream` workflow. It merges upstream into `sync/upstream`; nothing is pushed to `main` and nothing is ever sent to upstream._'
+          } > /tmp/body.md
+
+          title="chore: sync ${{ steps.check.outputs.behind }} commit(s) from upstream"
+          compare="${{ github.server_url }}/${{ github.repository }}/compare/main...$SYNC_BRANCH?expand=1"
+
+          # Use the REST API via gh api, not gh pr: the GraphQL createPullRequest
+          # mutation rejects GitHub App installation tokens, while REST works.
+          # Best-effort: the branch is already pushed and validated, so a failure
+          # here must not fail the run — the summary carries a compare link.
+          pr_ok=0
+          repo="${{ github.repository }}"
+          owner="${{ github.repository_owner }}"
+          body="$(cat /tmp/body.md)"
+          existing=$(gh api "repos/$repo/pulls?state=open&head=$owner:$SYNC_BRANCH" --jq '.[0].number // empty' 2>/dev/null || true)
+          if [ -n "$existing" ]; then
+            if gh api -X PATCH "repos/$repo/pulls/$existing" -f title="$title" -f body="$body" --jq .number >/dev/null; then
+              echo "Updated PR #$existing"; pr_ok=1
+            fi
+          else
+            if new=$(gh api -X POST "repos/$repo/pulls" -f title="$title" -f head="$SYNC_BRANCH" -f base=main -f body="$body" --jq .number); then
+              echo "Opened PR #$new"; pr_ok=1
+            fi
+          fi
+
+          {
+            if [ "$pr_ok" = '1' ]; then
+              echo "### Sync PR is open/updated"
+            else
+              echo "### Action could not open the PR — open it manually"
+              echo
+              echo "The branch $SYNC_BRANCH is pushed and validated; PR creation did not run (the sync GitHub App is not configured, or Actions may open PRs is disabled). Open the PR here:"
+              echo
+              echo "$compare"
+            fi
+            echo
+            cat /tmp/body.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report conflicts instead of merging
+        if: steps.merge.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo 'The weekly upstream sync could not merge cleanly, so no PR was opened and `main` was left untouched.'
+            echo
+            echo '### Conflicting files'
+            echo '```'
+            cat /tmp/conflicts.txt
+            echo '```'
+            echo
+            echo '### Upstream commits waiting to be merged'
+            echo '```'
+            cat /tmp/newcommits.txt
+            echo '```'
+            echo
+            echo 'Resolve locally:'
+            echo '```bash'
+            echo 'git fetch upstream'
+            echo 'git checkout -B sync/upstream origin/main'
+            echo 'git merge upstream/main   # resolve, then run the validators'
+            echo '```'
+          } > /tmp/issue.md
+
+          # The job summary is the primary channel: it always works and a failed
+          # scheduled run notifies the owner. Issues are best-effort.
+          cat /tmp/issue.md >> "$GITHUB_STEP_SUMMARY"
+
+          if gh issue list --state open --limit 1 >/dev/null 2>&1; then
+            existing=$(gh issue list --state open --search 'Upstream sync conflict in:title' --json number --jq '.[0].number // empty')
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --body-file /tmp/issue.md || true
+            else
+              gh issue create --title 'Upstream sync conflict' --body-file /tmp/issue.md || true
+            fi
+          else
+            echo 'Issues are disabled on this repository — conflict reported in the job summary only.'
+          fi
+          exit 1
