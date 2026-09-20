@@ -126,6 +126,11 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
         run: |
+          # actions/checkout persists GITHUB_TOKEN as an http.extraheader auth
+          # that overrides URL-embedded credentials. Drop it so the App token in
+          # the remote URL is what actually authenticates the push (GITHUB_TOKEN
+          # may not update .github/workflows files; the App token can).
+          git config --unset-all http."https://github.com/".extraheader || true
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           git push --force-with-lease origin "$SYNC_BRANCH"
 
