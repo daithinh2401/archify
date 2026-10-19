@@ -4,6 +4,80 @@ All notable changes are documented here. Format loosely follows [Keep a Changelo
 
 ## [Unreleased]
 
+## [3.2.0] — 2026-10-18
+
+### Added
+
+- **One-page answers (explainer) (#993).** Ask your agent to answer as a page and Archify builds a conclusion-first explainer from a Markdown draft. Each panel answers one question, using prose, tables, steps, checklists, charts, code and validated native diagrams.
+  - **Authoring and delivery:** `finalize explainer` validates, delivers atomically and checks the page. Charts come from a Mermaid fence or a CSV/JSON file next to the draft. Repository excerpts are read from the pinned commit. `patch explainer` replaces one panel by ID.
+  - **Reading:**
+    - Steps sit beside the diagram they walk through, and you can step through them.
+    - Text and diagram nodes highlight each other.
+    - Clicking a node opens the full Viewer focused on it.
+    - Citations and source-linked nodes open source cards.
+    - Each panel or selected passage produces a follow-up question that targets that panel.
+  - **Sharing:** the page ships in four styles (clean, editorial, product, Swiss) with light and dark themes, and exports a PNG, WebP or JPG long image or prints to PDF.
+  - **Examples:** four live pages in `docs/cases/explainer/`.
+  - **Credit:** the one-page document direction of #942 by @goatliamia shaped this work.
+  - **Acknowledgment:** thanks to @QingYunA for the early one-page diagram-and-explanation proposal and demo prototype.
+
+### Fixed
+
+- **Explainer pages no longer carry local paths.** The draft embedded in a page names its source and data files relative to the page, so a shared page does not reveal the author's directories. `patch explainer` resolves them against the page again.
+
+- **Explainer long images keep the page's style and theme.** A PNG, WebP or JPG export of a dark page, or of the editorial, product or Swiss style, came out in the light clean style, because the page is drawn inside an SVG where its `<html>` is not `:root`. The export now selects the page root by its own attribute.
+
+- **Blank chart data is an error, not zero.** An empty CSV cell, a JSON `null` or a missing field in a charted column no longer becomes a zero bar. Finalize names the column and row instead.
+
+- **Workflow migration semantic contracts (#497).** Layout planning no longer checks full-topology requirements against a temporary graph with routed edges removed. Migrated documents retain their authored contracts and must pass complete validation before publication.
+
+- **Timeline 时区刻度（#926）。** 刻度按显示时区在各真实时刻的 UTC 偏移对齐，修复跨夏令时后日刻度漂移到 01:00／23:00、半小时跳变后小时刻度漂移的问题。回拨的重复时刻保持独立，跳过的小时或日期不生成虚构刻度；事件时间、标签精度、时间轴比例与断轴规则保持不变。
+
+### Changed
+- **Reader controls and node index.** Compact bottom index rows keep descriptions below titles; menu and roving keyboard navigation respect modifier keys.
+- **Update notices.** Available updates include a release summary and an offer to help update. Network failures remain non-blocking.
+- **Website and portability.** The bilingual homepage and gallery introduce one-page answers while retaining guides and source-backed cases. Browser discovery, Windows command paths, source-directory whitespace and temporary-worktree cleanup receive focused fixes.
+
+### Release follow-up
+- The stable update manifest remains on v3.1.0 until the v3.2.0 GitHub Release is published and its ZIP digest is verified.
+- The separately versioned DSH plugin is not republished with this release; maintainers must select a pinned source and complete its host/package acceptance in a separate follow-up.
+
+## [3.1.0] — 2026-10-14
+
+### Release highlights
+- **Ten diagram types.** ERD, Class/interface, Tree, Timeline and Waterfall join Architecture, Workflow, Sequence, Dataflow and Lifecycle, with typed JSON, source evidence and standalone Viewer exports.
+- **Live by default.** Each diagram type uses a matching motion choreography; readers can switch to Still. Motion remains separate from authored topology and export geometry.
+- **Readable authoring and recovery.** Bounded route/label coordination, clearer node cards, wrapped Sequence notes, main-path Lifecycle layouts, long-page radar navigation and executable geometry diagnostics reduce avoidable repair work.
+- **Verified delivery and portability.** Finalize reports input, artifact and browser gates separately; repository evidence, atomic delivery, clipboard/export continuity and Windows path handling fail closed with actionable diagnostics.
+- **Guide and handoff.** Concise artifact-first delivery and a localized optional GitHub link inside the reader-opened Guide.
+
+### Known limitations
+- Large Sequence diagrams may require readable page scrolling; floating controls can overlap content at some initial viewport positions.
+- Some complex Dataflow inputs share visual corridors; long Class generic types can wrap awkwardly. Automatic validation does not establish perceptual quality.
+- Waterfall durations need recorded trace evidence to be called measured; author-supplied illustrative values remain labelled.
+- The independently published DSH plugin remains pinned to Archify 3.0.1. Synchronization requires a separate plugin release and host acceptance; the 3.1.0 Skill release does not update it.
+
+### Added
+- **Traditional Chinese (Taiwan) Viewer catalog.** `meta.locale: "zh-TW"` now selects a bundled catalog covering all 487 Viewer keys with Taiwan terminology (for example 循序圖, 資料流, 匯出, 檢視), instead of falling back to English. Enrollment is data only: `locales/zh-TW.json` plus one manifest entry. `zh-Hant` and `zh-HK` remain distinct, unbundled tags.
+- **GitLab source links.** Repository evidence on gitlab.com, or on a self-managed host declared with `provider: "gitlab"`, now generates revision-pinned web links (`/-/blob/<revision>/<path>#L<a>-<b>`, `/-/tree/<revision>`) instead of requiring `link_mode: "local-only"`. Nested groups are accepted, SSH and HTTPS origins on the same host match, paths compare case-insensitively, and cited Markdown line ranges open the plain view. Verification is unchanged and `local-only` remains available.
+
+### Fixed
+
+- **ER 图主干桥接隔离（#896）。** 自动总线不再跨越、接触或覆盖无关关系及其他已生成的桥接；检查包含双方实际描边宽度（含显式 `width`），存在冲突时保留分离的主干段，避免校验通过的图看起来多出关系。实体位置、显式途经点、关系基数及正常共享主干保持不变。
+
+- **WebM 录制失败清理 (#622)。** 画布、捕获流、编码器启动、逐帧绘制或停止失败时，录制 Promise 现在会拒绝并释放已创建的流、临时 URL、动画帧和定时器；晚到的编码事件不能再将失败录制报告为成功。正常编码与最佳努力的最终片段 flush 行为保持不变。
+
+- **类图混合关系的主干冲突（#791）。** 自动继承／实现主干会检查组外路线的端口、走廊和交叉；冲突组回退到独立路由，避免依赖箭头被继承三角覆盖或实线覆盖实现虚线。无冲突主干、显式几何及关系语义保持不变；空 `via: []` 与省略路径点统一处理，避免合法输入在回退后产生非法斜线。
+- **SVG 路径检查（#641）。** 统一解析关系线和结构边界的 `M/L/H/V/Q/Z` 路径，正确保留子路径与闭合语义；截断参数、非法数值和不支持的命令现在有限失败并给出定位诊断，避免检查挂起、漏检或虚构跨子路径线段。非共线 `Q` 前后的直线保留真实连续性，避免虚假交叉、标签遮挡和漏检；曲线采样点不会增加微线段预算。普通有效产物的 9 项检查保持不变。
+- **Inactive brand icon declarations.** Capture ignores icon markup in comments, raw text (including `noscript` for `text/html`), quoted attributes and templates, so inactive page edits cannot replace the selected image or break its pinned digest. Complete link attributes keep quoted delimiters and distinguish `href` from `data-href`; XHTML `noscript` discovery and links after empty elements are preserved. Old pins to inactive markup may require inspecting and explicitly recapturing the intended icon; digest checking remains enforced.
+- **Brand ICO data bounds (#585).** Capture and pinned re-fetches reject empty, directory-overlapping or out-of-bounds image ranges in ICO directory entries, while preserving valid PNG/DIB payloads and normal icon fallback.
+
+### Changed
+- **Pending DSH 1.0.0 bundle synchronized to stable Archify 3.0.1.** The immutable source includes the post-tag Skill installation fix (#704), with both packaged version identities verified. Isolated acceptance verifies the published 0.1.0 upgrade path on DSH 0.1.2-rc.1 and keeps mutating example checks outside pnpm store hard links. Archify releases now record a DSH sync or explicit deferral decision. The plugin remains unpublished; public installation still uses DSH plugin 0.1.0 with Archify 2.14.0 until a separate verified release.
+- **Bundled Viewer catalogs selected by `meta.locale`.** `archify/locales/manifest.json` enrolls package-owned catalogs (`en`, `zh-CN`, `es`, `ko`); English and Simplified Chinese moved from renderer tuples into the same data. Each message resolves as valid `meta.translations` value → selected bundled catalog → English, so a one-key override keeps the rest of the language. Enrolling another language is a data-only change. Catalogs load relative to the installed package, never from the working directory, and standalone HTML still embeds only the resolved Viewer messages. (#588)
+- **Intentional differences from 3.0.1.** Locale-only `es`/`ko` now render Spanish/Korean UI instead of English. A partial `meta.translations` (including for `zh-CN`) now falls through to the same-language bundled catalog before English; in 3.0.1 every unsupplied key became English. Equivalent tag casing such as `zh-cn` selects the bundled catalog and emits its canonical tag; region and script variants such as `zh-Hant` still fall back to English. An unbundled tag whose translations are all unusable now falls back to English `lang` as well. Omitted-locale, `en`, `zh-CN`, and complete-catalog inputs render unchanged.
+- **Locale diagnostics.** `i18n/translation-coverage` now reports the final resolved coverage and lists missing keys with their English source text; rejected overrides (unknown keys, placeholder mismatches) are reported separately as `i18n/invalid-translation` and keep the lower-priority message. Passing `validate --json`, `deliver`, and `finalize` receipts now carry these `i18n/*` warnings in `diagnostics[]` (gates and exit codes are unchanged); previously `finalize` did not surface them at all.
+
 ## [3.0.1] — 2026-09-28
 
 ### Changed
