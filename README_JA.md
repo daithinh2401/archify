@@ -58,8 +58,8 @@ https://github.com/user-attachments/assets/78570807-ba1d-4737-953f-55504a378a87
 
 Cursor、Claude Code、Codex CLI、OpenCode で利用できます。その他の連携については下記のインストール方法を参照してください。
 
-```bash
-npx skills add tt-a1i/archify -g
+```text
+Install Archify for me by reading https://raw.githubusercontent.com/tt-a1i/archify/main/llms.txt
 ```
 
 エージェントにこう送ってください:
@@ -104,7 +104,6 @@ Archify で 1 ページにまとめて答えて：API の P99 が 80 ms から 6
 <td align="center" width="240"><a href="https://www.openlux.ai/register?channel=c_qdvanbpc"><img src="docs/assets/sponsors/openlux-logo.png" alt="OpenLux" width="200" /></a><br/><strong><a href="https://www.openlux.ai/register?channel=c_qdvanbpc">OpenLux</a></strong></td>
 <td>OpenLux による本プロジェクトへのスポンサー支援に感謝します！OpenLux は、世界の主要プロバイダーの AI モデルを集約した企業向けのオールインワン AI プラットフォームです。高速で安定したサービスと迅速な技術サポートを提供し、Claude、OpenAI、Gemini シリーズの基本料金は、それぞれ公式料金の 8.82%、4%、8% から利用できます。<br/><br/>Archify ユーザー限定特典：専用リンクから登録すると、クレジットのチャージが最大 7.5% 割引になります！<br/><br/><a href="https://www.openlux.ai/register?channel=c_qdvanbpc">OpenLux を試す →</a></td>
 </tr>
-<tr><td align="center" width="240"><a href="https://github.com/EverMind-AI/Raven"><img src="docs/assets/sponsors/evermind-archify-raven.png" alt="Archify × Raven" width="200" /></a><br/><strong><a href="https://github.com/EverMind-AI">EverMind</a> · <a href="https://github.com/EverMind-AI/Raven">Raven</a></strong></td><td>EverMind は Archify をスポンサーし、エージェント向けのメモリ基盤を開発しています。同社の <a href="https://github.com/EverMind-AI/Raven"><strong>Raven</strong></a> ハーネスは、検証済みでインタラクティブなシステムマップのために Archify を Skill としてサポートしています。</td></tr>
 </table>
 
 > Archify のスポンサーをご検討ですか？ [メールでお問い合わせください。](mailto:2801884530@qq.com)
@@ -193,8 +192,8 @@ Export メニューから PNG をクリップボードにコピーしたり、�
 
 ### 1. インストール
 
-```bash
-npx skills add tt-a1i/archify -g
+```text
+Install Archify for me by reading https://raw.githubusercontent.com/tt-a1i/archify/main/llms.txt
 ```
 
 <details>
@@ -203,7 +202,7 @@ npx skills add tt-a1i/archify -g
 Cursor に明示的・非対話的にインストールする場合:
 
 ```bash
-npx -y skills add tt-a1i/archify --skill archify --agent cursor --global --copy --yes
+npx -y skills@latest add https://archify.si --skill archify --agent cursor --global --copy --yes
 ```
 
 インストールせずに試す場合:
@@ -212,7 +211,7 @@ npx -y skills add tt-a1i/archify --skill archify --agent cursor --global --copy 
 npx skills use tt-a1i/archify@archify --agent codex
 ```
 
-[DSH コミュニティ版（任意）](integrations/deepseek-harness/README.md): `dsh plugin --profile web add @tt-a1i/archify-dsh@1.0.0`
+[DSH コミュニティ版（任意）](integrations/deepseek-harness/README.md): `dsh plugin --profile web add @tt-a1i/archify-dsh@1.1.0`
 
 [エージェント切り替え](https://archify.si/start.html?agent=cursor&type=architecture)は `cursor`、`codex`、`claude-code`、`opencode` に対応しています。
 
@@ -416,7 +415,7 @@ node bin/archify.mjs deliver workflow examples/agent-tool-call.workflow.json /tm
 | **Claude.ai** | Settings → Capabilities → Skills から `archify.zip` をアップロード | サンドボックスでの Node.js 利用可否に依存 |
 | **Project Knowledge** | プロジェクトに `archify.zip` をアップロード | プロンプト駆動のアーキテクチャフォールバック |
 | **Hermes Agent** | 明示的に有効化: `hermes skills install skills-sh/tt-a1i/archify/archify -y` | コミュニティ版の Skill のみの統合。Node `>=18`。Nous 公式製品ではありません。テレメトリはありません。切り替え対象には含まれません。[詳細](integrations/hermes-agent/README.md)。 |
-| **DeepSeek Harness** | 明示的に有効化: `dsh plugin --profile web add @tt-a1i/archify-dsh@1.0.0`。呼び出し: `Use the archify skill to map this repository's runtime architecture.` 削除: `dsh plugin --profile web remove @tt-a1i/archify-dsh` | 開発者プレビュー版 `@deepseek-ai/dsh@0.1.2-rc.1` 向けのコミュニティ統合。Node `^22.19.0 \|\| >=24.0.0`。DeepSeek 公式製品ではなく、テレメトリもありません。シェルファイルには Web Produced Files ではなく、正確なワークスペースパスが必要です。[詳細](integrations/deepseek-harness/README.md)。 |
+| **DeepSeek Harness** | 明示的に有効化: `dsh plugin --profile web add @tt-a1i/archify-dsh@1.1.0`。呼び出し: `Use the archify skill to map this repository's runtime architecture.` 削除: `dsh plugin --profile web remove @tt-a1i/archify-dsh` | 開発者プレビュー版 `@deepseek-ai/dsh@0.2.1-rc.2` 向けのコミュニティ統合。Node `^22.19.0 \|\| >=24.0.0`。DeepSeek 公式製品ではなく、テレメトリもありません。シェルファイルには Web Produced Files ではなく、正確なワークスペースパスが必要です。[詳細](integrations/deepseek-harness/README.md)。 |
 
 ## リファレンスとスコープ
 
@@ -485,6 +484,12 @@ Alipay で下の QR コードをスキャンするか、画像を保存して Al
 </details>
 
 利用、共有、不具合の報告、改善への貢献も、プロジェクトの支えになります。
+
+## コントリビューター
+
+Archify の開発を支えてくれたすべての人に感謝します。[フォローしてみてください。](https://github.com/tt-a1i/archify/graphs/contributors) ❤️
+
+<p align="center"><a href="https://github.com/tt-a1i/archify/graphs/contributors"><img alt="Archify のコントリビューター" src="https://raw.githubusercontent.com/tt-a1i/archify/contributors/contributors.svg" width="1000" /></a></p>
 
 ## Star History
 
